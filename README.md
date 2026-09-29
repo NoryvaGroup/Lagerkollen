@@ -23,4 +23,12 @@ Service workern förbuffrar statiska filer för grundläggande offlinebruk. `Jee
 
 ## Utveckling
 
-Öppna via en lokal HTTP-server, exempelvis `python3 -m http.server 4173`. Appen har inget byggsteg. Kontrollera `node --check app.js` efter ändringar. Produktion deployas från `main` via Vercels GitHub-integration.
+Öppna via en lokal HTTP-server, exempelvis `python3 -m http.server 4173`. Appens statiska filer serveras direkt; om `src/cloud.js` ändras, kör `npm ci && npm run build:cloud`. Kör `npm run check` efter ändringar. Produktion deployas från `main` via Vercels GitHub-integration.
+
+## Molnsynk
+
+Branchen `feat/cloud-sync` innehåller en enkel synk per inloggad användare. Ett separat Lagerkollen-projekt med ref `vpfqgxwijflwbngffnlq` har skapats; den publika URL:en och publishable key finns i `cloud-config.js`. Det är inte företagets befintliga databas. Service role/secret key hör aldrig hemma i frontend.
+
+Migrationen `migrations/001_lagerkollen_state.sql` är tillämpad i Lagerkollen-projektet och RLS har kontrollerats. Supabase Authentication → URL Configuration har produktionssidan som Site URL och tillåter både produktionssidan och den testade förhandsversionen. Samma e-postkonto på båda enheterna hämtar samma data. Med e-postmallens `{{ .Token }}` kan användaren ange engångskod direkt i appen; standardmallen skickar i stället en klickbar länk.
+
+Första inloggningen laddar upp befintliga lokala ordrar om molnet är tomt, även om användaren redan loggat in via en tom förhandsversion. Data som tillhör ett annat tidigare inloggat konto laddas inte upp automatiskt. Om båda sidor redan innehåller data krävs ett val mellan molndata och en sammanslagning. Synken använder versionskontroll för att upptäcka samtidiga ändringar och skriver aldrig över en annan enhets version i tysthet. Vid offlinebruk behålls lokala ändringar och skickas när anslutningen återkommer. En JSON-backup rekommenderas inför sammanslagning.
