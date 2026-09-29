@@ -11,7 +11,7 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,9);
 const norm=s=>String(s||'').trim().toUpperCase();
 const labels={missing:'Saknas',found:'Hittad',notfound:'Ej hittad'};
 let data=blank(), view='order', filter='all', sortBy='default', toastTimer, dbPromise;
-let cloudRevision=null, cloudBusy=false, cloudConflict=null, cloudTimer, cloudMessage='Endast lokal lagring', cloudEmail='';
+let cloudRevision=null, cloudBusy=false, cloudConflict=null, cloudTimer, cloudMessage='Logga in för synk mellan mobil och dator', cloudEmail='';
 function sanitize(input){
  if(!input||!Array.isArray(input.orders)||!input.stock||typeof input.stock!=='object'||Array.isArray(input.stock))throw new Error('Ogiltig data');
  const out=blank();out._revision=Number(input._revision)||0;
@@ -46,7 +46,7 @@ function renderStock(){let q=norm($('stockSearch').value),list=Object.values(dat
 function renderCloud(){
  const available=window.Cloud?.available,user=window.Cloud?.user;
  $('loginForm').classList.toggle('hidden',!available||!!user);
- $('codeForm').classList.toggle('hidden',!available||!!user);
+ $('codeForm').classList.toggle('hidden',!available||!!user||!cloudEmail);
  $('signOut').classList.toggle('hidden',!user);
  $('syncConflict').classList.toggle('hidden',!cloudConflict);
  $('cloudStatus').textContent=available?(user?`${cloudMessage} · ${user.email||'Inloggad'}`:cloudMessage):'Molnsynk väntar på ett separat Lagerkollen-konto. Lokal backup fungerar fortfarande.';
@@ -74,7 +74,7 @@ $('articleFile').onchange=async e=>{let file=e.target.files?.[0];if(!file)return
 $('search').oninput=renderArticles;$('stockSearch').oninput=renderStock;$('sort').onchange=e=>{sortBy=e.target.value;renderArticles()};document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>{filter=b.dataset.filter;renderArticles()});
 $('articles').onclick=e=>{let row=e.target.closest('.article');if(!row)return;let s=e.target.closest('[data-status]');if(s)changeStatus(row.dataset.id,s.dataset.status);if(e.target.closest('[data-delete]'))removeArticle(row.dataset.id)};
 $('articles').addEventListener('change',e=>{let row=e.target.closest('.article'),field=e.target.dataset.field;if(row&&['location','note'].includes(field))saveField(row.dataset.id,field,e.target.value)});$('stock').addEventListener('change',e=>{let row=e.target.closest('[data-key]'),field=e.target.dataset.stockField;if(row&&['location','note'].includes(field))updateStock(row.dataset.key,field,e.target.value)});
-$('loginForm').onsubmit=async e=>{e.preventDefault();cloudEmail=$('email').value.trim();try{await Cloud.sendLink(cloudEmail);cloudMessage='Kontrollera mejlen. Öppna länken på denna enhet eller ange koden.';renderCloud()}catch(err){syncError(err)}};
+$('loginForm').onsubmit=async e=>{e.preventDefault();cloudEmail=$('email').value.trim();try{await Cloud.sendLink(cloudEmail);cloudMessage='Kontrollera mejlen och öppna länken på denna enhet. Om mejlet innehåller en kod kan du ange den här.';renderCloud()}catch(err){syncError(err)}};
 $('codeForm').onsubmit=async e=>{e.preventDefault();try{await Cloud.verifyCode(cloudEmail||$('email').value.trim(),$('code').value.trim());$('code').value=''}catch(err){syncError(err)}};
 $('signOut').onclick=()=>Cloud.signOut().catch(syncError);
 $('useCloud').onclick=()=>{if(!cloudConflict)return;if(!confirm('Ersätta denna enhets data med molnversionen? Exportera en backup först om lokala ändringar ska sparas.'))return;replaceFromCloud(cloudConflict)};
