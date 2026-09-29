@@ -1,3 +1,3 @@
 // Public browser configuration only. A publishable key is safe with RLS enabled.
-// Fill these from the dedicated Lagerkollen Supabase project before enabling cloud sync.
-window.LAGERKOLLEN_CLOUD = {url: '', publishableKey: ''};
+// Dedicated Lagerkollen project (not the Noryva production database).
+window.LAGERKOLLEN_CLOUD = {url: 'https://vpfqgxwijflwbngffnlq.supabase.co', publishableKey: 'sb_publishable_9Te3v3dacgrlcffWp8bwkA_PJGxV7Y5'};
