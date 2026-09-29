@@ -1,0 +1,29 @@
+{
+  "name": "lagerkollen",
+  "version": "1.0.0",
+  "description": "Snabb orderchecklista för lagerplock på dator och mobil. Statisk PWA utan byggsteg eller externa JavaScript-beroenden.",
+  "main": "app.js",
+  "scripts": {
+    "build:cloud": "esbuild src/cloud.js --bundle --minify --format=iife --target=es2020 --outfile=cloud.bundle.js",
+    "check": "node --check app.js && node --check cloud.bundle.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/NoryvaGroup/Lagerkollen.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/NoryvaGroup/Lagerkollen/issues"
+  },
+  "homepage": "https://github.com/NoryvaGroup/Lagerkollen#readme",
+  "dependencies": {
+    "@supabase/supabase-js": "2.117.2"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  },
+  "private": true
+}

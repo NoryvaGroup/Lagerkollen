@@ -24,3 +24,11 @@ Service workern förbuffrar statiska filer för grundläggande offlinebruk. `Jee
 ## Utveckling
 
 Öppna via en lokal HTTP-server, exempelvis `python3 -m http.server 4173`. Appen har inget byggsteg. Kontrollera `node --check app.js` efter ändringar. Produktion deployas från `main` via Vercels GitHub-integration.
+
+## Förberedd synk (separat Supabase-projekt krävs)
+
+Branchen `feat/cloud-sync` innehåller en enkel synk per inloggad användare. Installera beroenden med `npm ci`, bygg `cloud.bundle.js` med `npm run build:cloud` och ange **endast** projektets publika URL och publishable key i `cloud-config.js`. Service role/secret key hör aldrig hemma i frontend.
+
+Kör `migrations/001_lagerkollen_state.sql` på ett separat Lagerkollen-projekt, kontrollera RLS och Auth-inställningar. Lägg till `https://lagerkollen.vercel.app` som Site URL och tillåten redirect URL för e-postinloggning. Samma e-postkonto på båda enheterna hämtar samma data. Med e-postmallens `{{ .Token }}` kan användaren ange engångskod direkt i appen; standardmallen skickar i stället en klickbar länk. Ingen molnanslutning sker förrän konfigurationen finns.
+
+Första inloggningen laddar upp befintliga lokala ordrar om molnet är tomt. Om båda sidor redan innehåller data krävs ett val mellan molndata och en sammanslagning. Synken använder versionskontroll för att upptäcka samtidiga ändringar och skriver aldrig över en annan enhets version i tysthet. Vid offlinebruk behålls lokala ändringar och skickas när anslutningen återkommer. En JSON-backup rekommenderas inför sammanslagning.
