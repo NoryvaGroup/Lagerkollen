@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="sv">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lagerkollen">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<title>Lagerkollen</title>
+<style>
+:root{--bg:#f3f4f6;--card:#fff;--txt:#111827;--mut:#6b7280;--red:#dc2626;--green:#16a34a;--amber:#d97706;--blue:#2563eb}
+*{box-sizing:border-box}body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--txt)}button,input,textarea{font:inherit}
+.app{max-width:900px;margin:auto;min-height:100vh;padding-bottom:80px}header{position:sticky;top:0;z-index:10;background:#111827f5;color:#fff;padding:15px;backdrop-filter:blur(10px)}
+h1{font-size:23px;margin:0}.sub{font-size:12px;color:#cbd5e1;margin-top:3px}nav{display:flex;gap:7px;margin-top:11px;overflow:auto}nav button{border:0;border-radius:999px;padding:9px 12px;background:#374151;color:#fff;white-space:nowrap}nav .on{background:#fff;color:#111827;font-weight:700}
+main{padding:13px}.card{background:#fff;border-radius:16px;padding:14px;margin-bottom:11px;box-shadow:0 1px 3px #0001}.row{display:flex;gap:9px;align-items:center;flex-wrap:wrap}.grow{flex:1}
+input,textarea{width:100%;padding:12px;border:1px solid #d1d5db;border-radius:12px;background:#fff}textarea{min-height:115px}.btn{border:0;border-radius:11px;padding:11px 13px;font-weight:700;background:#111827;color:#fff}.blue{background:var(--blue)}.green{background:var(--green)}.red{background:var(--red)}.amber{background:var(--amber)}.light{background:#e5e7eb;color:#111827}.sm{padding:8px 10px;font-size:13px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:10px}.stat{background:#fff;border-radius:13px;padding:10px;text-align:center}.stat b{display:block;font-size:21px}.stat span{font-size:11px;color:var(--mut)}
+.item{background:#fff;border-radius:14px;padding:12px;margin-bottom:9px;border-left:5px solid #d1d5db}.item.missing{border-color:var(--red)}.item.found{border-color:var(--green)}.item.notfound{border-color:var(--amber)}
+.top{display:flex;justify-content:space-between;gap:8px}.nr{font-size:20px;font-weight:800}.badge{font-size:11px;font-weight:800;border-radius:999px;padding:5px 8px}.missing .badge{background:#fee2e2;color:#991b1b}.found .badge{background:#dcfce7;color:#166534}.notfound .badge{background:#ffedd5;color:#9a3412}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:9px}.status{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:9px}.status button{border:0;border-radius:10px;padding:9px 6px;font-weight:700;font-size:12px}.m{background:#fee2e2;color:#991b1b}.f{background:#dcfce7;color:#166534}.n{background:#ffedd5;color:#9a3412}
+.toolbar{display:flex;gap:7px;flex-wrap:wrap;margin:9px 0}.muted{color:var(--mut);font-size:12px}.hidden{display:none!important}.empty{text-align:center;color:var(--mut);padding:22px}.order{display:flex;align-items:center;gap:8px}.order>div{flex:1}.order h3{margin:0 0 4px}.loc{font-size:12px;margin-top:4px}.loc b{font-size:13px}
+@media(max-width:620px){.stats{grid-template-columns:repeat(2,1fr)}.grid,.status{grid-template-columns:1fr}}
+</style>
+</head>
+<body><div class="app">
+<header><h1>Lagerkollen</h1><div class="sub">Orderbrister • lagerplatser • artikelhistorik</div>
+<nav>
+<button data-tab="orders" class="on">Ordrar</button>
+<button data-tab="active">Aktiv order</button>
+<button data-tab="stock">Lagerregister</button>
+<button data-tab="backup">Backup</button>
+</nav></header>
+<main>
+<section id="ordersTab">
+<div class="card"><b>Ny order</b><div class="row" style="margin-top:9px"><div class="grow"><input id="orderName" placeholder="Ordernummer, t.ex. 112949"></div><button class="btn blue" id="newOrder">Skapa</button></div></div>
+<div id="orders"></div>
+</section>
+
+<section id="activeTab" class="hidden">
+<div id="noActive" class="card empty">Välj eller skapa en order först.</div>
+<div id="activeWrap" class="hidden">
+<div class="row"><div class="grow"><h2 id="activeTitle" style="margin:2px 0"></h2><div id="activeMeta" class="muted"></div></div><button id="archive" class="btn light sm">Arkivera</button></div>
+<div class="stats" style="margin-top:10px"><div class="stat"><b id="tot">0</b><span>Totalt</span></div><div class="stat"><b id="mis">0</b><span>Saknas</span></div><div class="stat"><b id="fnd">0</b><span>Hittade</span></div><div class="stat"><b id="nf">0</b><span>Ej hittade</span></div></div>
+<div class="card"><b>Lägg till artiklar</b><textarea id="paste" placeholder="Klistra in artikelnummer, ett per rad eller separerade med mellanslag/komma."></textarea><div class="row"><button id="add" class="btn blue">Lägg till</button><button id="clear" class="btn light">Rensa</button></div></div>
+<input id="search" placeholder="Sök artikelnummer, lagerplats eller anteckning">
+<div class="toolbar"><button class="btn light sm filt" data-f="all">Alla</button><button class="btn red sm filt" data-f="missing">Saknas</button><button class="btn green sm filt" data-f="found">Hittade</button><button class="btn amber sm filt" data-f="notfound">Ej hittade</button><button class="btn light sm" id="sort">Sortera lagerplats</button></div>
+<div id="articles"></div>
+</div></section>
+
+<section id="stockTab" class="hidden">
+<div class="card"><b>Lagerregister</b><div class="muted" style="margin:6px 0 10px">Lagerplatser du sparar återanvänds automatiskt nästa gång samma artikel dyker upp.</div><input id="stockSearch" placeholder="Sök artikelnummer eller lagerplats"></div>
+<div id="stock"></div>
+</section>
+
+<section id="backupTab" class="hidden">
+<div class="card"><b>Backup</b><p class="muted">Orderdata och lagerplatser sparas på den här enheten. Exportera en backup ibland.</p><div class="row"><button id="export" class="btn blue">Exportera</button><label class="btn light">Importera<input id="import" type="file" accept=".json" style="display:none"></label></div></div>
+<div class="card muted">Tips: Lägg sidan på iPhone-hemskärmen via Dela → Lägg till på hemskärmen. Då öppnas Lagerkollen som en app.</div>
+</section>
+</main></div>
+<script>
+var KEY='lagerkollen_v2',empty={orders:[],stock:{},current:null},data=load(),filter='all',sortLoc=false;
+function load(){try{var x=JSON.parse(localStorage.getItem(KEY));return x&&x.orders&&x.stock?x:JSON.parse(JSON.stringify(empty))}catch(e){return JSON.parse(JSON.stringify(empty))}}
+function save(){localStorage.setItem(KEY,JSON.stringify(data));render()}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,7)}
+function esc(s){return String(s||'').replace(/[&<>"']/g,function(m){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]})}
+function nowfmt(t){return new Date(t).toLocaleString('sv-SE',{dateStyle:'short',timeStyle:'short'})}
+function cur(){return data.orders.find(function(o){return o.id===data.current})}
+document.querySelectorAll('nav button').forEach(function(b){b.onclick=function(){tab(b.dataset.tab)}})
+function tab(n){document.querySelectorAll('nav button').forEach(function(b){b.classList.toggle('on',b.dataset.tab===n)});['orders','active','stock','backup'].forEach(function(x){document.getElementById(x+'Tab').classList.toggle('hidden',x!==n)});render()}
+newOrder.onclick=function(){var n=orderName.value.trim();if(!n)return alert('Skriv ordernummer.');var o={id:uid(),name:n,created:Date.now(),archived:false,articles:[]};data.orders.unshift(o);data.current=o.id;orderName.value='';save();tab('active')}
+add.onclick=function(){var o=cur();if(!o)return;var nums=[...new Set(paste.value.split(/[\s,;]+/).map(function(x){return x.trim()}).filter(Boolean))];nums.forEach(function(n){var k=n.toUpperCase();if(!o.articles.some(function(a){return a.nr.toUpperCase()===k})){var old=data.stock[k]||{};o.articles.push({id:uid(),nr:n,status:'missing',location:old.location||'',note:'',updated:Date.now()})}});paste.value='';save()}
+clear.onclick=function(){paste.value=''}
+archive.onclick=function(){var o=cur();if(o){o.archived=true;save();tab('orders')}}
+search.oninput=renderArticles;stockSearch.oninput=renderStock;
+document.querySelectorAll('.filt').forEach(function(b){b.onclick=function(){filter=b.dataset.f;renderArticles()}})
+sort.onclick=function(){sortLoc=!sortLoc;renderArticles()}
+function useOrder(i){data.current=i;save();tab('active')}
+function status(i,s){var o=cur(),a=o&&o.articles.find(function(x){return x.id===i});if(a){a.status=s;a.updated=Date.now();save()}}
+function upd(i,f,v){var o=cur(),a=o&&o.articles.find(function(x){return x.id===i});if(!a)return;a[f]=v;a.updated=Date.now();if(f==='location'&&v.trim()){var k=a.nr.toUpperCase();data.stock[k]={nr:a.nr,location:v.trim(),updated:Date.now()}}save()}
+function del(i){var o=cur();if(o&&confirm('Ta bort artikeln från ordern?')){o.articles=o.articles.filter(function(a){return a.id!==i});save()}}
+function renderOrders(){if(!data.orders.length){orders.innerHTML='<div class="card empty">Inga ordrar ännu.</div>';return}orders.innerHTML=data.orders.map(function(o){var m=o.articles.filter(function(a){return a.status==='missing'}).length,f=o.articles.filter(function(a){return a.status==='found'}).length;return '<div class="card order"><div><h3>'+esc(o.name)+(o.archived?' <span class="muted">Arkiverad</span>':'')+'</h3><div class="muted">'+nowfmt(o.created)+' • '+o.articles.length+' artiklar • '+m+' saknas • '+f+' hittade</div></div><button class="btn blue sm" onclick="useOrder(\''+o.id+'\')">Öppna</button></div>'}).join('')}
+function renderActive(){var o=cur();noActive.classList.toggle('hidden',!!o);activeWrap.classList.toggle('hidden',!o);if(!o)return;activeTitle.textContent='Order '+o.name;activeMeta.textContent='Skapad '+nowfmt(o.created);tot.textContent=o.articles.length;mis.textContent=o.articles.filter(function(a){return a.status==='missing'}).length;fnd.textContent=o.articles.filter(function(a){return a.status==='found'}).length;nf.textContent=o.articles.filter(function(a){return a.status==='notfound'}).length;renderArticles()}
+function renderArticles(){var o=cur();if(!o)return;var q=search.value.trim().toLowerCase(),arr=o.articles.filter(function(a){return (filter==='all'||a.status===filter)&&(!q||(a.nr+' '+a.location+' '+a.note).toLowerCase().includes(q))});if(sortLoc)arr.sort(function(a,b){return (a.location||'ZZZ').localeCompare(b.location||'ZZZ','sv')});if(!arr.length){articles.innerHTML='<div class="card empty">Inga artiklar matchar.</div>';return}var lab={missing:'Saknas',found:'Hittad',notfound:'Ej hittad'};articles.innerHTML=arr.map(function(a){var old=data.stock[a.nr.toUpperCase()]||{},loc=a.location||old.location||'';return '<div class="item '+a.status+'"><div class="top"><div><div class="nr">'+esc(a.nr)+'</div>'+(loc?'<div class="loc">Lagerplats: <b>'+esc(loc)+'</b></div>':'')+'</div><span class="badge">'+lab[a.status]+'</span></div><div class="grid"><input value="'+esc(loc)+'" placeholder="Lagerplats, t.ex. A12-03" onchange="upd(\''+a.id+'\',\'location\',this.value)"><input value="'+esc(a.note)+'" placeholder="Anteckning" onchange="upd(\''+a.id+'\',\'note\',this.value)"></div><div class="status"><button class="m" onclick="status(\''+a.id+'\',\'missing\')">Saknas</button><button class="f" onclick="status(\''+a.id+'\',\'found\')">✓ Hittad</button><button class="n" onclick="status(\''+a.id+'\',\'notfound\')">✕ Ej hittad</button></div><div style="text-align:right;margin-top:7px"><button class="btn light sm" onclick="del(\''+a.id+'\')">Ta bort</button></div></div>'}).join('')}
+function renderStock(){var q=stockSearch.value.trim().toLowerCase(),a=Object.values(data.stock).filter(function(x){return (x.nr+' '+x.location).toLowerCase().includes(q)}).sort(function(a,b){return a.nr.localeCompare(b.nr,'sv')});if(!a.length){stock.innerHTML='<div class="card empty">Inga sparade lagerplatser ännu.</div>';return}stock.innerHTML=a.map(function(x){return '<div class="card row"><div class="grow"><b>'+esc(x.nr)+'</b><div class="muted">Uppdaterad '+nowfmt(x.updated)+'</div></div><div style="min-width:170px"><input value="'+esc(x.location)+'" onchange="stockUpd(\''+esc(x.nr.toUpperCase())+'\',this.value)"></div></div>'}).join('')}
+function stockUpd(k,v){if(data.stock[k]){data.stock[k].location=v.trim();data.stock[k].updated=Date.now();save()}}
+export.onclick=function(){var b=new Blob([JSON.stringify(data,null,2)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='lagerkollen-backup-'+new Date().toISOString().slice(0,10)+'.json';a.click()}
+import.onchange=async function(e){var f=e.target.files[0];if(!f)return;try{var x=JSON.parse(await f.text());if(!x.orders||!x.stock)throw 0;if(confirm('Ersätta nuvarande data med backupen?')){data=x;save();tab('orders')}}catch(z){alert('Ogiltig backupfil.')}e.target.value=''}
+function render(){renderOrders();renderActive();renderStock()}render();
+if('serviceWorker'in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}
+</script></body></html>
