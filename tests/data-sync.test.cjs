@@ -27,4 +27,10 @@ assert.equal(merge(remote, local).orders[0].articles.length, 1, 'later article e
 const other = structuredClone(oldBackup);
 other.orders[0].articles.push({id:'a2',nr:'XYZ',status:'missing',updated:250});
 assert.equal(merge(other, local).orders[0].articles.map(a=>a.nr).join(','), 'XYZ', 'unrelated articles remain');
+vm.runInContext(`data=${JSON.stringify(oldBackup)}`, context);
+const emptyRow = {payload:{orders:[],stock:{},current:null}};
+const shouldSeed = (row, cp, userId) => vm.runInContext(`shouldSeedCloud(${JSON.stringify(row)},${JSON.stringify(cp)},${JSON.stringify(userId)})`, context);
+assert.equal(shouldSeed(emptyRow, null, 'u1'), true, 'old local orders migrate into a fresh cloud account');
+assert.equal(shouldSeed(emptyRow, {userId:'u2'}, 'u1'), false, 'data cached for another account is not silently uploaded');
+assert.equal(shouldSeed({payload:oldBackup}, null, 'u1'), false, 'existing cloud data requires a conflict choice');
 console.log('Data migration and merge tests passed');
