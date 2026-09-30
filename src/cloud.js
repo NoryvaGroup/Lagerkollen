@@ -10,6 +10,8 @@ window.Cloud={
  get user(){return session?.user||null},
  async init(onAuth){listener=onAuth;if(!client)return null;const {data,error}=await client.auth.getSession();if(error)throw error;session=data.session;return session?.user||null},
  async sendLink(email){if(!client)throw Error('Molnlagring är inte konfigurerad');let {error}=await client.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin,shouldCreateUser:true}});if(error)throw error},
+ async signInWithPassword(email,password){if(!client)throw Error('Molnlagring är inte konfigurerad');const {data,error}=await client.auth.signInWithPassword({email,password});if(error)throw error;session=data.session;return data.user},
+ async setPassword(password){if(!session?.user)throw Error('Logga in först');const {error}=await client.auth.updateUser({password});if(error)throw error},
  async verifyCode(email,token){if(!client)throw Error('Molnlagring är inte konfigurerad');let {error}=await client.auth.verifyOtp({email,token,type:'email'});if(error)throw error},
  async signOut(){if(!client)return;let {error}=await client.auth.signOut();if(error)throw error},
  async read(){const {data,error}=await client.from('lagerkollen_state').select('revision,payload').eq('owner_id',session.user.id).maybeSingle();if(error)throw error;return data},
