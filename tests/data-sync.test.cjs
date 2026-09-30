@@ -8,6 +8,7 @@ const context = vm.createContext({window: {}, document: {}, localStorage: {}, in
 vm.runInContext(source, context);
 const sanitize = value => vm.runInContext(`sanitize(${JSON.stringify(value)})`, context);
 const merge = (remote, local) => vm.runInContext(`mergeData(${JSON.stringify(remote)},${JSON.stringify(local)})`, context);
+const results = order => vm.runInContext(`formatOrderResults(${JSON.stringify(order)})`, context);
 
 const oldBackup = {orders:[{id:'o1',name:'Test',created:100,articles:[{id:'a1',nr:'ABC',status:'found',location:'A1',updated:100}]}],stock:{ABC:{nr:'ABC',location:'A1'}},current:'o1'};
 assert.equal(sanitize(oldBackup).orders[0].articles[0].nr, 'ABC', 'old backups still load');
@@ -33,4 +34,5 @@ const shouldSeed = (row, cp, userId) => vm.runInContext(`shouldSeedCloud(${JSON.
 assert.equal(shouldSeed(emptyRow, null, 'u1'), true, 'old local orders migrate into a fresh cloud account');
 assert.equal(shouldSeed(emptyRow, {userId:'u2'}, 'u1'), false, 'data cached for another account is not silently uploaded');
 assert.equal(shouldSeed({payload:oldBackup}, null, 'u1'), false, 'existing cloud data requires a conflict choice');
+assert.equal(results({name:'007141',articles:[{nr:'00123',status:'found',location:'A1',note:'Kontrollera\nigen'},{nr:'S4050142',status:'notfound',location:'',note:'=1+1'}]}),"Order\tArtikelnummer\tStatus\tLagerplats\tAnteckning\n'007141\t'00123\tHittad\tA1\tKontrollera igen\n'007141\tS4050142\tEj hittad\t\t'=1+1",'results paste into spreadsheet without losing leading zeroes or running notes as formulas');
 console.log('Data migration and merge tests passed');
