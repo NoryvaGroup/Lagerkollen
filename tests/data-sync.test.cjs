@@ -50,4 +50,10 @@ assert.equal(remembered.location,'T40','saving a place does not require Found st
 vm.runInContext(`rememberArticle({nr:'ABC',description:'Test part',location:'T42',note:'',status:'notfound'},{name:'O2'},true);`,context);
 remembered=vm.runInContext('data.stock.ABC',context);assert.equal(remembered.location,'T42');assert.equal(Array.from(remembered.previousLocations).join(','),'T40');
 vm.runInContext(`rememberFound({nr:'ABC',description:'Test part',location:'T42',note:''},{name:'O2'},true);`,context);assert.equal(vm.runInContext('data.stock.ABC.foundCount',context),1);
+const pendingPicklist=structuredClone(enriched);pendingPicklist.orders[0].articles[0].status='missing';
+const defaultFound=sanitize(pendingPicklist);assert.equal(defaultFound.orders[0].articles[0].status,'found','whole picklists default to Found');assert.equal(defaultFound.stock.ABC.lastSeen,0,'default Found does not invent a physical sighting');
+pendingPicklist.orders[0].articles[0].status='notfound';assert.equal(sanitize(pendingPicklist).orders[0].articles[0].status,'notfound','explicit Not found survives reload');
+const shortage=structuredClone(oldBackup);shortage.orders[0].articles[0].status='missing';assert.equal(sanitize(shortage).orders[0].articles[0].status,'missing','shortage orders retain Missing');
+const stalePicklist=structuredClone(pendingPicklist);stalePicklist.orders[0].articles[0].status='missing';stalePicklist.orders[0].articles[0].updated=900;assert.equal(merge(enriched,stalePicklist).orders[0].articles[0].status,'found','old pending state merges into new picklist workflow');
+const picklistRow=vm.runInContext(`renderArticle(${JSON.stringify(defaultFound.orders[0].articles[0])},${JSON.stringify(defaultFound.orders[0])})`,context);assert.ok(picklistRow.includes('Inte hittad'));assert.ok(!picklistRow.includes('data-status="missing"'));assert.ok(picklistRow.includes('data-status="found" aria-pressed="true"'));
 console.log('Data migration and merge tests passed');
