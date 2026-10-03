@@ -66,7 +66,13 @@ function renderOrder(){
  document.querySelector('.stat-notfound span').textContent=o.kind==='picklist'?'Inte hittade':'Ej hittade';
  document.querySelector('.filters [data-filter="missing"]').classList.toggle('hidden',o.kind==='picklist');
  document.querySelector('.filters [data-filter="notfound"]').textContent=statusLabel('notfound',o);if(o.kind==='picklist'&&filter==='missing')filter='all';
- for(const [id,status] of [['mis','missing'],['fnd','found'],['nf','notfound']])$(id).textContent=articles.filter(a=>a.status===status).length;renderArticles();
+ for(const [id,status] of [['mis','missing'],['fnd','found'],['nf','notfound']])$(id).textContent=articles.filter(a=>a.status===status).length;$('missingOverview').innerHTML=missingOverview(o);renderArticles();
+}
+function missingOverview(order){
+ const articles=order.articles.filter(a=>!a.isGroup&&a.status==='notfound');
+ const head=`<div class="missing-overview-head"><div><span class="eyebrow">ORDER ${esc(order.name)}</span><h3 id="missingOverviewTitle">Saknas <span class="missing-total">${articles.length}</span></h3></div><span class="missing-overview-caption">Markerade som inte hittade</span></div>`;
+ if(!articles.length)return head+'<p class="missing-overview-empty">Inga artiklar markerade som inte hittade.</p>';
+ return head+`<table class="missing-table"><thead><tr><th scope="col">Artikelnummer</th><th scope="col">Benämning</th><th scope="col">Behov</th><th scope="col">Status</th></tr></thead><tbody>${articles.map(a=>`<tr><th scope="row">${esc(a.nr)}</th><td class="missing-description">${esc(a.description||data.stock[norm(a.nr)]?.description||'Benämning saknas')}</td><td class="missing-quantity"><span class="mobile-quantity-label">Behov </span>${a.requiredQty==null?'—':`${quantity(a.requiredQty)} ${esc(a.unit)}`}</td><td class="missing-state"><span class="missing-badge"><span aria-hidden="true">!</span> Saknas</span></td></tr>`).join('')}</tbody></table><p class="missing-overview-footnote">Behov är orderns totala mängd enligt plocklistan.</p>`;
 }
 function articleContext(a){let old=data.stock[norm(a.nr)]||{},parts=[];if(old.location){parts.push(`Senast känd: ${old.location}`);if(old.locationUpdated)parts.push(date(old.locationUpdated));}else parts.push('Ingen sparad lagerplats');if(old.previousLocations?.length)parts.push('Tidigare: '+old.previousLocations.join(', '));if(old.lastSeen)parts.push('Senast hittad '+date(old.lastSeen));return parts.join(' · ');}
 function renderArticle(a,o){
