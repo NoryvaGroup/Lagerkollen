@@ -85,7 +85,7 @@ function renderOrderSections(){
  if(past.length)html+='<section class="line-section"><div class="order-section">Historik · '+past.length+'</div>'+orderRows(past)+'</section>';
  return html;
 }
-function renderOrders(){$('orders').innerHTML=renderOrderSections();$('stockCount').textContent=Object.keys(data.stock).length;document.querySelectorAll('[data-view]').forEach(b=>{let selected=b.dataset.view===view||(b.dataset.view==='order'&&view==='orders');b.classList.toggle('selected',selected);if(selected)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});}
+function renderOrders(){$('orders').innerHTML=renderOrderSections();$('stockCount').textContent=Object.keys(data.stock).length;document.querySelectorAll('[data-view]').forEach(b=>{let selected=b.dataset.view===view||(b.dataset.view==='order'&&view==='orders'&&!!b.closest('.desktop-nav'));b.classList.toggle('selected',selected);if(selected)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});}
 function renderOrder(){
  let o=current();$('noActive').classList.toggle('hidden',!!o);$('activeWrap').classList.toggle('hidden',!o);if(!o)return;
  $('placementForm').classList.toggle('hidden',o.kind==='shortage');$('placementLine').value=o.line||'';$('placementGroup').value=o.subgroup||'';$('placementGroups').innerHTML=groupOptions(o.line);
