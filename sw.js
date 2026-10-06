@@ -1,4 +1,4 @@
-const CACHE='lagerkollen-v13';
+const CACHE='lagerkollen-v14';
 const CORE=['/','/index.html','/styles.css','/app.js','/cloud-config.js','/cloud.bundle.js','/manifest.webmanifest','/icon.svg'];
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE).then(cache=>cache.addAll(CORE)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(Promise.all([caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE).map(key=>caches.delete(key)))),self.clients.claim()])));
