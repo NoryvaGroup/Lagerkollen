@@ -39,9 +39,9 @@ assert.equal(exported.length,3,'group headers are not exported as material');
 assert.equal(exported[1][0],"'007141");assert.equal(exported[1][1],"'00123");assert.equal(exported[1][2],'Kontakt');assert.equal(exported[1][10],'Kontrollera igen');assert.equal(exported[2][10],"'=1+1",'notes cannot become spreadsheet formulas');
 const enriched = structuredClone(oldBackup);Object.assign(enriched.orders[0],{kind:'picklist',productNr:'000001',productionQty:5,printedAt:'2026-10-02'});Object.assign(enriched.orders[0].articles[0],{description:'Test component',requiredQty:2.5,perUnitQty:0.5,availableQty:0,shortageQty:2.5,unit:'ST',isGroup:false});
 const roundtrip = sanitize(JSON.parse(JSON.stringify(sanitize(enriched))));
-assert.equal(roundtrip.schemaVersion,4);assert.equal(roundtrip.orders[0].articles[0].description,'Test component');assert.equal(roundtrip.orders[0].articles[0].requiredQty,2.5);assert.equal(roundtrip.orders[0].articles[0].availableQty,0);assert.equal(roundtrip.orders[0].productNr,'000001');
+assert.equal(roundtrip.schemaVersion,5);assert.equal(roundtrip.orders[0].articles[0].description,'Test component');assert.equal(roundtrip.orders[0].articles[0].requiredQty,2.5);assert.equal(roundtrip.orders[0].articles[0].availableQty,0);assert.equal(roundtrip.orders[0].productNr,'000001');
 assert.equal(sanitize(oldBackup).orders[0].articles[0].requiredQty,null,'an absent quantity must not become zero');
-assert.throws(()=>sanitize({...oldBackup,schemaVersion:5}),/nyare version/,'future backups cannot be silently downgraded');
+assert.throws(()=>sanitize({...oldBackup,schemaVersion:6}),/nyare version/,'future backups cannot be silently downgraded');
 const legacyEdit=structuredClone(oldBackup);legacyEdit.orders[0].articles[0].updated=500;legacyEdit.orders[0].articles[0].location='T50';legacyEdit.orders[0].updated=500;
 const mixed=merge(enriched,legacyEdit);assert.equal(mixed.orders[0].articles[0].description,'Test component','an edit from an old local backup must not remove article metadata');assert.equal(mixed.orders[0].articles[0].location,'T50');assert.equal(mixed.orders[0].articles[0].requiredQty,2.5);assert.equal(mixed.orders[0].productNr,'000001');
 vm.runInContext(`data=blank();rememberArticle({nr:'ABC',description:'Test part',location:'T40',note:'',status:'missing'},{name:'O1'},true);`, context);
@@ -75,4 +75,26 @@ vm.runInContext("data=blank();addOrder('List 1','shortage','','');addArticles('X
 vm.runInContext("data=blank();addOrder('H1 order','H1','Cup','Test heater');addArticles('ABC');",context);assert.equal(vm.runInContext('current().subgroup',context),'Cup');assert.equal(vm.runInContext('current().line',context),'H1');assert.equal(vm.runInContext('current().articles[0].status',context),'found');assert.equal(vm.runInContext('data.groups.length',context),1);
 vm.runInContext("placeOrder('H3','Rondo')",context);assert.equal(vm.runInContext('current().line',context),'H3');assert.equal(vm.runInContext('current().subgroup',context),'Rondo');
 context.confirm=()=>false;vm.runInContext('removeOrder(current().id)',context);assert.equal(vm.runInContext('data.orders.length',context),1,'canceling deletion leaves order intact');context.confirm=()=>true;vm.runInContext('removeOrder(current().id)',context);assert.equal(vm.runInContext('data.orders.length',context),0);assert.equal(vm.runInContext('Object.keys(data.deletedOrders).length',context),1);
+// Heading edits must preserve orders and remain correct with a stale second device.
+vm.runInContext("data=blank();addOrder('O1','H1','Cupp');addArticles('ABC');",context);
+const beforeRename=JSON.parse(vm.runInContext('JSON.stringify(data)',context));
+vm.runInContext("renameHeading('H1','Cupp','Cup')",context);
+const renamed=JSON.parse(vm.runInContext('JSON.stringify(data)',context));
+for(const combined of [merge(renamed,beforeRename),merge(beforeRename,renamed)]){assert.equal(combined.orders[0].subgroup,'Cup');assert.equal(combined.groups.filter(g=>!g.deleted).map(g=>g.name).join(','),'Cup');}
+context.confirm=()=>false;assert.equal(vm.runInContext("deleteHeading('H1','Cup')",context),false);assert.equal(vm.runInContext('current().subgroup',context),'Cup');
+context.confirm=()=>true;vm.runInContext("deleteHeading('H1','Cup')",context);
+const noGroup=JSON.parse(vm.runInContext('JSON.stringify(data)',context));
+for(const combined of [merge(noGroup,renamed),merge(renamed,noGroup)]){assert.equal(combined.orders.length,1);assert.equal(combined.orders[0].articles.length,1);assert.equal(combined.orders[0].line,'H1');assert.equal(combined.orders[0].subgroup,'');assert.equal(combined.groups.filter(g=>!g.deleted).length,0);}
+vm.runInContext("ensureGroup('H1','Magma');placeOrder('H1','Magma');renameHeading('H1','','Eftermontage')",context);
+const renamedLine=JSON.parse(vm.runInContext('JSON.stringify(data)',context));
+assert.equal(renamedLine.orders[0].line,'Eftermontage');assert.equal(renamedLine.orders[0].subgroup,'Magma');assert.ok(renamedLine.sections.some(x=>x.name==='Eftermontage'&&!x.deleted));
+assert.equal(merge(renamedLine,beforeRename).orders[0].line,'Eftermontage');
+vm.runInContext("deleteHeading('Eftermontage')",context);
+const noLine=JSON.parse(vm.runInContext('JSON.stringify(data)',context));
+for(const combined of [merge(noLine,renamedLine),merge(renamedLine,noLine)]){assert.equal(combined.orders[0].line,'');assert.equal(combined.orders[0].subgroup,'');assert.equal(combined.orders[0].articles.length,1);assert.ok(!combined.sections.some(x=>x.name==='Eftermontage'&&!x.deleted));}
+vm.runInContext("addSection('H4');addOrder('custom','H4','Rondo')",context);assert.equal(vm.runInContext('current().line',context),'H4');assert.equal(sanitize(JSON.parse(vm.runInContext('JSON.stringify(data)',context))).orders[0].line,'H4');
+assert.equal(vm.runInContext("addSection('h4')",context),false,'section duplicates are case insensitive');
+const legacy4={...organized,schemaVersion:4};assert.equal(sanitize(legacy4).orders[0].subgroup,'Magma','v4 headings migrate without losing placement');
+const deletedLegacy=structuredClone(legacy4);deletedLegacy.groups.push({line:'H2',name:'Magma',updated:999,deleted:true});assert.equal(sanitize(deletedLegacy).orders[0].subgroup,'','legacy order recovery does not resurrect a deleted heading');
+vm.runInContext("data=blank();addSection('H4');ensureGroup('H4','<Cup>')",context);const editorNodes={};context.document.getElementById=id=>editorNodes[id]??=( {value:'',classList:{toggle(){},add(){}},focus(){}});vm.runInContext('renderEditor();refreshLineChoices()',context);assert.ok(editorNodes.headingEditor.innerHTML.includes('&lt;Cup&gt;'));assert.ok(editorNodes.orderLine.innerHTML.includes('H4'));assert.ok(editorNodes.headingEditor.innerHTML.includes('data-delete-heading'));
 console.log('Data migration and merge tests passed');
