@@ -5,7 +5,7 @@
   "main": "app.js",
   "scripts": {
     "build:cloud": "esbuild src/cloud.js --bundle --minify --format=iife --target=es2020 --outfile=cloud.bundle.js",
-    "check": "node --check app.js && node --check cloud.bundle.js && node tests/data-sync.test.cjs"
+    "check": "node --check app.js && node --check workbench.js && node --check sw.js && node --check cloud.bundle.js && node tests/data-sync.test.cjs && node tests/workbench.test.cjs"
   },
   "repository": {
     "type": "git",
