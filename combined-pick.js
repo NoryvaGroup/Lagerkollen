@@ -43,6 +43,13 @@ function combinedPickRows(first, second) {
   });
   return [...rows.values()].map(row=>({...row,shared:row.present.every(Boolean),total:row.unknown.some(Boolean)?null:row.amounts[0]+row.amounts[1]}));
 }
+function combinedAllocationMarkup(row,firstName,secondName,section){
+  const amount=(value,unknown=false)=>unknown||value==null?'Okänt':quantity(value)+' '+esc(row.unit);
+  return '<div class="shared-pick-total">Totalbehov båda: <strong>'+amount(row.total)+'</strong></div>'+
+    '<div class="shared-pick-orders"><span><small>Order '+esc(firstName)+'</small><strong>'+amount(row.amounts[0],row.unknown[0])+'</strong></span><span><small>Order '+esc(secondName)+'</small><strong>'+amount(row.amounts[1],row.unknown[1])+'</strong></span></div>'+
+    '<small class="shared-pick-help">Summerat över hela varje order. Samma total visas på upprepade artikelrader.</small>'+
+    (section?'<small class="shared-pick-section">Denna sektion: '+esc(firstName)+' '+amount(section.amounts[0],section.unknown[0])+' · '+esc(secondName)+' '+amount(section.amounts[1],section.unknown[1])+'</small>':'');
+}
 function renderCombinedPick(){
   const order=current(),panel=$('combinedPick');if(!panel||!order)return;
   const candidates=data.orders.filter(o=>o.id!==order.id&&!o.archived&&o.articles.some(a=>!a.isGroup));
@@ -77,12 +84,8 @@ function renderCombinedPick(){
       const key=combinedPickSectionMap(order).get(article.id)?.key;
       const section=combinedPickSectionRows(order,other,article.nr,article.unit).find(s=>s.key===key);
       const badge=document.createElement('div');badge.className='shared-pick-badge';
-      const amount=section?.total==null?'okänt':quantity(section.total)+' '+row.unit;
-      badge.textContent='Denna sektion, båda ordrar: '+amount;
-      if(section&&!section.unknown.some(Boolean))badge.textContent+=' ('+quantity(section.amounts[0])+' + '+quantity(section.amounts[1])+')';
-      const total=document.createElement('small');total.style.display='block';
-      total.textContent='Totalt i alla sektioner: '+(row.total==null?'okänt':quantity(row.total)+' '+row.unit)+'. Samma artikelnummer återkommer; totalsumman är inte extra att plocka.';
-      badge.append(total);element.querySelector('.identity').append(badge);
+      badge.innerHTML=combinedAllocationMarkup(row,order.name,other.name,section);
+      element.querySelector('.identity').append(badge);
     }
   });
 }
