@@ -109,7 +109,7 @@ function initWorkbench() {
   management.append($('archive'),$('deleteOrder'));body.append(management);
   document.querySelector('#activeWrap .pagehead').after(tools);
   const jump=document.createElement('button');jump.type='button';jump.className='primary small';jump.textContent='Till artiklar ↓';
-  jump.onclick=()=>document.querySelector('.picking-toolbar').scrollIntoView({block:'start'});
+  jump.onclick=()=>(document.body.classList.contains('samplock-active')?$('combinedPick'):document.querySelector('.picking-toolbar')).scrollIntoView({block:'start'});
   document.querySelector('.pageactions').prepend(jump);
   $('repeatOrder').className='secondary small';
 
