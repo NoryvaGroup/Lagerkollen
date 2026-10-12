@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+const context=vm.createContext({norm:s=>String(s).trim().toUpperCase(),data:{stock:{}}});
+vm.runInContext(fs.readFileSync('combined-pick.js','utf8').split('function renderCombinedPick')[0],context);
+const first={articles:[{nr:'001',unit:'ST',requiredQty:12},{nr:'001',unit:'ST',requiredQty:16},{nr:'001',unit:'ST',requiredQty:6},{nr:'G',isGroup:true,requiredQty:0},{nr:'X',unit:'M',requiredQty:2}]};
+const second={articles:[{nr:'001',unit:'ST',requiredQty:12},{nr:'001',unit:'ST',requiredQty:16},{nr:'001',unit:'ST',requiredQty:2},{nr:'Y',unit:'ST',requiredQty:12},{nr:'X',unit:'ST',requiredQty:3}]};
+const before=JSON.stringify([first,second]);
+context.first=first;context.second=second;
+const rows=vm.runInContext('combinedPickRows(first,second)',context);
+assert.equal(rows.find(r=>r.nr==='001').total,64);assert.equal(rows.find(r=>r.nr==='001').shared,true);
+assert.equal(rows.find(r=>r.nr==='Y').shared,false);assert.equal(rows.filter(r=>r.nr==='X').length,2,'incompatible units are never added');
+assert.ok(!rows.some(r=>r.nr==='G'));assert.equal(JSON.stringify([first,second]),before,'comparison is read-only');
+first.articles.push({nr:'001',unit:'ST',requiredQty:null});
+assert.equal(vm.runInContext('combinedPickRows(first,second)',context).find(r=>r.nr==='001').total,null,'missing quantities stay unknown');
+console.log('Combined picking: repeated rows, different quantities, units, unknown amounts and data preservation passed');

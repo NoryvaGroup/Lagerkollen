@@ -83,6 +83,7 @@ function renderWorkbench(shown) {
   document.querySelectorAll('.stat-shortcut').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.pickFilter===filter)));
   $('placementDetails').classList.toggle('hidden',order.kind==='shortage');
   document.body.classList.toggle('compact-picking',$('compactPicking').checked);
+  if(typeof renderCombinedPick==='function')renderCombinedPick();
 }
 function initWorkbench() {
   const main=$('main');main.tabIndex=-1;
