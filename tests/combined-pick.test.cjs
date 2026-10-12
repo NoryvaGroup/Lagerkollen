@@ -12,3 +12,9 @@ assert.ok(!rows.some(r=>r.nr==='G'));assert.equal(JSON.stringify([first,second])
 first.articles.push({nr:'001',unit:'ST',requiredQty:null});
 assert.equal(vm.runInContext('combinedPickRows(first,second)',context).find(r=>r.nr==='001').total,null,'missing quantities stay unknown');
 console.log('Combined picking: repeated rows, different quantities, units, unknown amounts and data preservation passed');
+const a={articles:[{id:'ga',isGroup:true,description:'Dosa'},{id:'a1',nr:'S',unit:'ST',requiredQty:12},{id:'gm',isGroup:true,description:'Montering'},{id:'a2',nr:'S',unit:'ST',requiredQty:16},{id:'ge',isGroup:true,description:'Elementbricka 20 kW'},{id:'a3',nr:'S',unit:'ST',requiredQty:6}]};
+const b={articles:[{id:'gb',isGroup:true,description:'Dosa'},{id:'b1',nr:'S',unit:'ST',requiredQty:12},{id:'gbm',isGroup:true,description:'Montering'},{id:'b2',nr:'S',unit:'ST',requiredQty:16},{id:'gbe',isGroup:true,description:'Elementbricka 30 kW'},{id:'b3',nr:'S',unit:'ST',requiredQty:2}]};
+context.a=a;context.b=b;
+assert.deepEqual(Array.from(vm.runInContext("combinedPickSectionRows(a,b,'S','ST')",context),r=>r.total),[24,32,8]);
+assert.equal(vm.runInContext('combinedPickRows(a,b)',context)[0].total,64);
+console.log('Section labels distinguish 24 for Dosa from the 64 whole-order total');
