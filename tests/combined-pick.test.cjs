@@ -80,3 +80,14 @@ assert.equal(vm.runInContext("markCombinedFetched('one','deleted','S','ST')",con
 assert.equal(vm.runInContext("markCombinedFetched('one','two','S','M')",context),false,'units must match');
 assert.equal(saves,1);assert.equal(sightings,1);
 console.log('Paired completion covers duplicate rows, preserves quantities and unrelated orders, and is idempotent');
+// Opening an individual article from samplock preserves explicit paired completion intent.
+a.articles.filter(x=>!x.isGroup).forEach(x=>x.status='neutral');b.articles.filter(x=>!x.isGroup).forEach(x=>x.status='neutral');
+vm.runInContext("pairedArticleContext={first:'one',second:'two',nr:'S',unit:'ST'}",context);
+context.opened=a.articles.find(x=>!x.isGroup);
+assert.equal(vm.runInContext('completePairedArticle(opened)',context),true);
+assert.ok([a,b].every(o=>o.articles.filter(x=>!x.isGroup).every(x=>x.status==='fetched')));
+assert.equal(vm.runInContext("completePairedArticle({nr:'OTHER',unit:'ST'})",context),null);
+vm.runInContext("leaveSamplock('one')",context);
+assert.equal(vm.runInContext('completePairedArticle(opened)',context),null,'ordinary navigation ends paired status changes');
+assert.equal(vm.runInContext("comparedOrders.get('one')",context),'');
+console.log('Explicit article handoff keeps both-order completion; ordinary orders remain independent');

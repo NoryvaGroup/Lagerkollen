@@ -2,6 +2,13 @@
 // Grouped picking. Explicit completion updates only the two selected orders.
 const comparedOrders = new Map();
 let samplockMode = false;
+let pairedArticleContext = null;
+function leaveSamplock(orderId){samplockMode=false;pairedArticleContext=null;comparedOrders.set(orderId,'');}
+function completePairedArticle(article){
+  const ctx=pairedArticleContext;
+  if(!ctx||![ctx.first,ctx.second].includes(current()?.id)||norm(article.nr)!==norm(ctx.nr)||norm(article.unit||'ST')!==norm(ctx.unit||'ST'))return null;
+  return markCombinedFetched(ctx.first,ctx.second,ctx.nr,ctx.unit);
+}
 function isHinkArticle(article){return /\bhink(?:artikel|artiklar)?\b/i.test([article.note,data.stock[norm(article.nr)]?.note].filter(Boolean).join(' '));}
 function markCombinedFetched(firstId,secondId,nr,unit){
   const orders=[firstId,secondId].map(id=>data.orders.find(o=>o.id===id&&!o.archived));
@@ -93,6 +100,9 @@ function samplockCard(row,first,second){
 function renderCombinedPick(){
   const order=current(),panel=$('combinedPick');if(!panel)return;
   if(!order){samplockMode=false;document.body.classList.remove('samplock-active');return;}
+  const hint=pairedArticleContext&&[pairedArticleContext.first,pairedArticleContext.second].includes(order.id)?pairedArticleContext:null;
+  $('pairedArticleHint').classList.toggle('hidden',!hint);
+  if(hint){const first=data.orders.find(o=>o.id===hint.first),second=data.orders.find(o=>o.id===hint.second);$('pairedArticleText').textContent='Samplock för '+hint.nr+': Hämtad uppdaterar alla rader i order '+(first?.name||'')+' och '+(second?.name||'')+'.';}
   const candidates=data.orders.filter(o=>o.id!==order.id&&!o.archived&&o.articles.some(a=>!a.isGroup));
   if(!comparedOrders.has(order.id)){
     const batch=candidates.filter(o=>o.created===order.created&&o.line===order.line&&o.subgroup===order.subgroup);
@@ -132,6 +142,9 @@ function initCombinedPick(){
   const panel=document.createElement('details');panel.id='combinedPick';panel.className='combined-pick';panel.open=true;
   panel.innerHTML='<summary>Samplock <span id="combinedCount"></span></summary><div class="joint-body"><div class="sam-pair"><div><label for="compareOrder">Plocka aktiv order tillsammans med</label><select id="compareOrder"></select></div><button type="button" id="samModeToggle" class="primary" aria-pressed="false">Öppna samplock</button></div><div id="samToolbar" class="sam-toolbar hidden"><label class="sr-only" for="samSearch">Sök i samplock</label><input id="samSearch" type="search" placeholder="Sök artikel, plats eller anteckning"><label class="sr-only" for="samFilter">Visa artiklar</label><select id="samFilter"><option value="all">Alla artiklar</option><option value="hink">Hinkartiklar</option><option value="shared">Gemensamma artiklar</option><option value="remaining">Kvar att plocka</option></select><label class="sr-only" for="samSort">Sortera samplock</label><select id="samSort"><option value="location">Plockrunda: lagerplats</option><option value="number">Artikelnummer</option></select></div><p id="samMeta" class="hidden" role="status"></p><div id="combinedResults"></div></div>';
   document.querySelector('.picking-progress').after(panel);
+  const hint=document.createElement('aside');hint.id='pairedArticleHint';hint.className='paired-article-hint hidden';hint.innerHTML='<span id="pairedArticleText"></span><button type="button" class="secondary small" id="endPairedArticle">Endast denna order</button>';
+  document.querySelector('#activeWrap .pagehead').after(hint);
+  $('endPairedArticle').onclick=()=>{pairedArticleContext=null;renderCombinedPick();};
   $('samFilter').value='remaining';
   $('compareOrder').onchange=()=>{if(current()){comparedOrders.set(current().id,$('compareOrder').value);renderCombinedPick();}};
   $('samModeToggle').onclick=()=>{samplockMode=!samplockMode;panel.open=true;renderCombinedPick();if(samplockMode)$('samSearch').focus();};
@@ -141,7 +154,12 @@ function initCombinedPick(){
     const fetched=event.target.closest('[data-sam-fetch]');
     if(fetched){if(current()?.id!==fetched.dataset.samFirst||comparedOrders.get(current().id)!==fetched.dataset.samSecond){notice('Orderparet ändrades. Kontrollera plocklistan igen.');return;}
       markCombinedFetched(fetched.dataset.samFirst,fetched.dataset.samSecond,fetched.dataset.samFetch,fetched.dataset.samUnit);return;}
-    const button=event.target.closest('[data-sam-order]');if(!button)return;samplockMode=false;selectOrder(button.dataset.samOrder);$('search').value=button.dataset.samNr;renderArticles();$('articles').scrollIntoView({block:'start'});
+    const button=event.target.closest('[data-sam-order]');if(!button)return;
+    const first=current(),second=data.orders.find(o=>o.id===comparedOrders.get(first.id));
+    const rows=second?combinedPickRows(first,second):[],row=rows.find(r=>norm(r.nr)===norm(button.dataset.samNr));
+    const units=rows.filter(r=>norm(r.nr)===norm(button.dataset.samNr));
+    const ctx=row?.shared&&units.length===1?{first:first.id,second:second.id,nr:row.nr,unit:row.unit}:null;
+    selectOrder(button.dataset.samOrder);pairedArticleContext=ctx;filter='all';$('search').value=button.dataset.samNr;renderArticles();(ctx?$('pairedArticleHint'):$('articles')).scrollIntoView({block:'start'});
   });
   const hinkButton=document.createElement('button');hinkButton.type='button';hinkButton.id='hinkFilter';hinkButton.dataset.filter='hink';hinkButton.textContent='Hink';hinkButton.setAttribute('aria-pressed','false');
   document.querySelector('.filters').append(hinkButton);hinkButton.onclick=()=>{filter='hink';renderArticles();};
