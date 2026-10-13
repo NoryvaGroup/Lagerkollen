@@ -65,3 +65,18 @@ context.$('samSearch').value='does not exist';vm.runInContext('renderCombinedPic
 assert.equal(JSON.stringify(context.data),uiSnapshot,'entering, searching and filtering the view never writes saved data');
 context.data.orders=[a];vm.runInContext('renderCombinedPick()',context);assert.equal(bodyClasses.has('samplock-active'),false);assert.equal(context.$('samModeToggle').disabled,true,'removing the partner returns to ordinary order rows');
 console.log('Samplock mode transitions, search, empty results and missing partner fallback passed');
+// A completed total pickup applies to every matching material row in the selected pair.
+context.data.orders=[a,b,{id:'unrelated',articles:[{nr:'S',unit:'ST',status:'neutral'}]}];
+a.articles.filter(x=>!x.isGroup).forEach(x=>x.status='neutral');
+let saves=0,sightings=0;context.persist=()=>saves++;context.notice=()=>{};context.rememberFound=()=>sightings++;
+const quantities=JSON.stringify([a,b].map(o=>o.articles.map(x=>({nr:x.nr,unit:x.unit,qty:x.requiredQty}))));
+assert.equal(vm.runInContext("markCombinedFetched('one','two','S','ST')",context),true);
+assert.ok([a,b].every(o=>o.articles.filter(x=>!x.isGroup).every(x=>x.status==='fetched')));
+assert.equal(context.data.orders[2].articles[0].status,'neutral');assert.equal(saves,1);assert.equal(sightings,1);
+assert.equal(JSON.stringify([a,b].map(o=>o.articles.map(x=>({nr:x.nr,unit:x.unit,qty:x.requiredQty})))),quantities);
+assert.equal(vm.runInContext("markCombinedFetched('one','two','S','ST')",context),false,'repeat clicks cannot count another pickup');
+assert.equal(vm.runInContext("markCombinedFetched('one','one','S','ST')",context),false);
+assert.equal(vm.runInContext("markCombinedFetched('one','deleted','S','ST')",context),false);
+assert.equal(vm.runInContext("markCombinedFetched('one','two','S','M')",context),false,'units must match');
+assert.equal(saves,1);assert.equal(sightings,1);
+console.log('Paired completion covers duplicate rows, preserves quantities and unrelated orders, and is idempotent');

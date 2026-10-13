@@ -1,8 +1,21 @@
 'use strict';
-// Read-only comparison. Picking status, locations and order quantities stay independent.
+// Grouped picking. Explicit completion updates only the two selected orders.
 const comparedOrders = new Map();
 let samplockMode = false;
 function isHinkArticle(article){return /\bhink(?:artikel|artiklar)?\b/i.test([article.note,data.stock[norm(article.nr)]?.note].filter(Boolean).join(' '));}
+function markCombinedFetched(firstId,secondId,nr,unit){
+  const orders=[firstId,secondId].map(id=>data.orders.find(o=>o.id===id&&!o.archived));
+  if(firstId===secondId||orders.some(o=>!o))return false;
+  const matches=orders.map(o=>o.articles.filter(a=>!a.isGroup&&norm(a.nr)===norm(nr)&&norm(a.unit||'ST')===norm(unit||'ST')));
+  if(matches.some(list=>!list.length))return false;
+  let changed=false,sighting=null;const now=Date.now();
+  orders.forEach((order,index)=>{for(const article of matches[index])if(article.status!=='fetched'){
+    if(!sighting&&!['found','fetched'].includes(article.status))sighting={article,order};
+    article.status='fetched';article.statusVersion=2;article.updated=now;order.updated=now;changed=true;
+  }});
+  if(changed){if(sighting)rememberFound(sighting.article,sighting.order,true);persist();notice('Hämtad till båda ordrarna – alla rader för '+nr);}
+  return changed;
+}
 function combinedPickSectionMap(order){
   const members=new Map(),occurrences=new Map();let section={key:'ungrouped',name:'Utan sektion'};
   for(const article of order.articles){
@@ -72,6 +85,7 @@ function samplockCard(row,first,second){
   }).join('');
   const sections=combinedPickSectionRows(first,second,row.nr,row.unit);
   return '<article class="sam-card '+(row.shared?'shared':'')+'"><div class="sam-identity"><strong>'+esc(row.nr)+'</strong><span>'+esc(row.description)+'</span><div class="sam-tags">'+(row.shared?'<span class="joint-tag">Gemensam</span>':'<span class="joint-tag unique">En order</span>')+(row.hink?'<span class="hink-badge">Hink</span>':'')+'</div></div><div class="sam-location"><span>Lagerplats</span><strong>'+esc(row.locations.length?row.locations.join(' / '):'Okänd plats')+'</strong>'+(row.locations.length>1?'<small>Flera platser sparade – kontrollera vilken som gäller.</small>':'')+'</div><div class="sam-total"><span>Totalbehov</span><strong>'+amount(row.total,row.total==null)+'</strong><small>Kvar enligt plockstatus:<br><b>'+amount(row.pendingTotal,row.pendingTotal==null)+'</b></small></div><div class="sam-allocations">'+allocations+'</div>'+
+    (row.shared?'<button type="button" class="primary sam-fetch" data-sam-fetch="'+esc(row.nr)+'" data-sam-unit="'+esc(row.unit)+'" data-sam-first="'+esc(first.id)+'" data-sam-second="'+esc(second.id)+'"'+(row.statuses.every(list=>list.every(status=>status==='fetched'))?' disabled':'')+'>'+ (row.statuses.every(list=>list.every(status=>status==='fetched'))?'✓ Hämtat till båda':'✓ Hämtat till båda · alla sektioner')+'</button>':'')+
     (row.hink?'<p class="sam-hink">Hinkartikel – plockas via sidan för hinkartiklar.</p>':'')+
     (row.notes.length?'<details class="sam-sections"><summary>Anteckningar och anmärkningar</summary>'+row.notes.map(note=>'<p>'+esc(note)+'</p>').join('')+'</details>':'')+
     (sections.length>1?'<details class="sam-sections"><summary>Fördelning per sektion</summary>'+sections.map(s=>'<p>'+esc(s.name)+'<br>'+esc(first.name)+': '+amount(s.amounts[0],s.unknown[0])+' · '+esc(second.name)+': '+amount(s.amounts[1],s.unknown[1])+'</p>').join('')+'</details>':'')+'</article>';
@@ -118,11 +132,17 @@ function initCombinedPick(){
   const panel=document.createElement('details');panel.id='combinedPick';panel.className='combined-pick';panel.open=true;
   panel.innerHTML='<summary>Samplock <span id="combinedCount"></span></summary><div class="joint-body"><div class="sam-pair"><div><label for="compareOrder">Plocka aktiv order tillsammans med</label><select id="compareOrder"></select></div><button type="button" id="samModeToggle" class="primary" aria-pressed="false">Öppna samplock</button></div><div id="samToolbar" class="sam-toolbar hidden"><label class="sr-only" for="samSearch">Sök i samplock</label><input id="samSearch" type="search" placeholder="Sök artikel, plats eller anteckning"><label class="sr-only" for="samFilter">Visa artiklar</label><select id="samFilter"><option value="all">Alla artiklar</option><option value="hink">Hinkartiklar</option><option value="shared">Gemensamma artiklar</option><option value="remaining">Kvar att plocka</option></select><label class="sr-only" for="samSort">Sortera samplock</label><select id="samSort"><option value="location">Plockrunda: lagerplats</option><option value="number">Artikelnummer</option></select></div><p id="samMeta" class="hidden" role="status"></p><div id="combinedResults"></div></div>';
   document.querySelector('.picking-progress').after(panel);
+  $('samFilter').value='remaining';
   $('compareOrder').onchange=()=>{if(current()){comparedOrders.set(current().id,$('compareOrder').value);renderCombinedPick();}};
   $('samModeToggle').onclick=()=>{samplockMode=!samplockMode;panel.open=true;renderCombinedPick();if(samplockMode)$('samSearch').focus();};
   $('samSearch').oninput=renderCombinedPick;$('samFilter').onchange=renderCombinedPick;$('samSort').onchange=renderCombinedPick;
   panel.addEventListener('toggle',()=>{if(!panel.open&&samplockMode){samplockMode=false;renderCombinedPick();}});
-  $('combinedResults').addEventListener('click',event=>{const button=event.target.closest('[data-sam-order]');if(!button)return;samplockMode=false;selectOrder(button.dataset.samOrder);$('search').value=button.dataset.samNr;renderArticles();$('articles').scrollIntoView({block:'start'});});
+  $('combinedResults').addEventListener('click',event=>{
+    const fetched=event.target.closest('[data-sam-fetch]');
+    if(fetched){if(current()?.id!==fetched.dataset.samFirst||comparedOrders.get(current().id)!==fetched.dataset.samSecond){notice('Orderparet ändrades. Kontrollera plocklistan igen.');return;}
+      markCombinedFetched(fetched.dataset.samFirst,fetched.dataset.samSecond,fetched.dataset.samFetch,fetched.dataset.samUnit);return;}
+    const button=event.target.closest('[data-sam-order]');if(!button)return;samplockMode=false;selectOrder(button.dataset.samOrder);$('search').value=button.dataset.samNr;renderArticles();$('articles').scrollIntoView({block:'start'});
+  });
   const hinkButton=document.createElement('button');hinkButton.type='button';hinkButton.id='hinkFilter';hinkButton.dataset.filter='hink';hinkButton.textContent='Hink';hinkButton.setAttribute('aria-pressed','false');
   document.querySelector('.filters').append(hinkButton);hinkButton.onclick=()=>{filter='hink';renderArticles();};
   document.addEventListener('keydown',event=>{if(samplockMode&&event.key==='/'&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&!event.target.matches('input,textarea,select,[contenteditable]')){event.preventDefault();event.stopPropagation();show('order');panel.open=true;$('samSearch').focus();}},true);
