@@ -15,12 +15,13 @@ function markCombinedFetched(firstId,secondId,nr,unit){
   if(firstId===secondId||orders.some(o=>!o))return false;
   const matches=orders.map(o=>o.articles.filter(a=>!a.isGroup&&norm(a.nr)===norm(nr)&&norm(a.unit||'ST')===norm(unit||'ST')));
   if(matches.some(list=>!list.length))return false;
+  const undo=typeof beginPickingUndo==='function'?beginPickingUndo(orders.flatMap((order,i)=>matches[i].map(article=>({order,article}))),'Samplock '+orders.map(o=>o.name).join(' + ')+' · '+nr):null;
   let changed=false,sighting=null;const now=Date.now();
   orders.forEach((order,index)=>{for(const article of matches[index])if(article.status!=='fetched'){
     if(!sighting&&!['found','fetched'].includes(article.status))sighting={article,order};
-    article.status='fetched';article.statusVersion=2;article.updated=now;order.updated=now;changed=true;
+    article.status='fetched';article.statusVersion=2;article.updated=Math.max(now,(article.updated||0)+1);order.updated=article.updated;changed=true;
   }});
-  if(changed){if(sighting)rememberFound(sighting.article,sighting.order,true);persist();notice('Hämtad till båda ordrarna – alla rader för '+nr);}
+  if(changed){if(sighting)rememberFound(sighting.article,sighting.order,true);if(typeof finishPickingUndo==='function')finishPickingUndo(undo);persist();notice('Hämtad till båda ordrarna – alla rader för '+nr);}
   return changed;
 }
 function combinedPickSectionMap(order){

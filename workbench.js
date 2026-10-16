@@ -14,6 +14,7 @@ function pickingSummary(order) {
 }
 function workbenchIcon(name) {
   const paths = {
+    home:'<path d="m3 10 9-7 9 7v10H3V10Zm6 10v-7h6v7"/>',
     orders:'<rect x="4" y="4" width="16" height="16" rx="3"/><path d="M8 8h8M8 12h8M8 16h5"/>',
     order:'<path d="m4 7 2 2 3-4m3 2h8M4 14l2 2 3-4m3 2h8M12 20h8"/>',
     stock:'<path d="m12 3 9 5-9 5-9-5 9-5ZM3 8v9l9 5 9-5V8M12 13v9M7 5l9 5"/>',
@@ -70,7 +71,8 @@ function renderWorkbench(shown) {
     workbenchOrderId = order.id;
   }
   $('progressLabel').textContent=summary.total?`${summary.fetched} av ${summary.total} hämtade`:'Ingen plocklista inlagd ännu';
-  $('progressRemaining').textContent=summary.total?`${summary.remaining} kvar`:'Lägg till artiklar i Orderverktyg';
+  $('progressRemaining').textContent=summary.total?`${summary.remaining} återstår`:'Lägg till artiklar i Orderverktyg';
+  if($('pendingBreakdown'))$('pendingBreakdown').textContent=`Återstår: ${summary.remaining-summary.missing-summary.blocked} inte påbörjade · ${summary.missing} inte hittade · ${summary.blocked} hittade men väntar`;
   $('pickProgress').value=summary.fetched;$('pickProgress').max=Math.max(1,summary.total);
   $('pickProgress').setAttribute('aria-label',`${summary.fetched} av ${summary.total} artiklar hämtade`);
   $('exceptionCount').textContent=summary.missing+summary.blocked;
@@ -114,7 +116,7 @@ function initWorkbench() {
   $('repeatOrder').className='secondary small';
 
   const progress=document.createElement('div');progress.className='picking-progress';
-  progress.innerHTML='<div><strong id="progressLabel"></strong><span id="progressRemaining"></span></div><progress id="pickProgress" value="0" max="1"></progress>';
+  progress.innerHTML='<div><strong id="progressLabel"></strong><span id="progressRemaining"></span></div><progress id="pickProgress" value="0" max="1"></progress><p id="pendingBreakdown" class="pending-breakdown"></p>';
   const stats=document.querySelector('.stats');stats.before(progress);
   const statFilters=['all','neutral','found','notfound','fetched'];
   [...stats.children].forEach((tile,index)=>{const button=document.createElement('button');button.className='stat-shortcut';button.type='button';button.dataset.pickFilter=statFilters[index];

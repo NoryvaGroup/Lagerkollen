@@ -38,7 +38,7 @@ node('search').value='';run("filter='all';sectionFilter='group';renderArticles()
 assert.ok(node('articles').innerHTML.includes('article-group'));
 run('workbenchReady=true;renderWorkbench(4)');
 assert.equal(node('progressLabel').textContent,'1 av 4 hämtade');
-assert.equal(node('progressRemaining').textContent,'3 kvar');
+assert.equal(node('progressRemaining').textContent,'3 återstår');
 assert.equal(node('exceptionCount').textContent,2);
 assert.equal(node('visibleCount').textContent,'Visar 4 av 4 artiklar');
 assert.equal(node('orderTools').open,false,'existing populated orders start focused on picking');
