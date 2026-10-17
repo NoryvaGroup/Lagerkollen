@@ -1,0 +1,38 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm');
+(async()=>{
+ const {createUsernameHandler}=await import('../supabase/functions/username-login/handler.mjs');
+ const userId='f19d6523-e574-4526-97e7-b6fad341a75c',calls=[];
+ let allowed=true,exists=true,correct=true;
+ const request=async(url,options={})=>{calls.push({url,options});let body;
+  if(url.includes('consume_username_login'))body=allowed;
+  else if(url.includes('lagerkollen_usernames'))body=exists?[{user_id:userId}]:[];
+  else if(url.includes('/admin/users/'))return new Response(JSON.stringify({email:'account@example.invalid'}),{status:exists?200:404});
+  else if(url.includes('/token?'))return new Response(JSON.stringify(correct&&exists?{access_token:'test-access',refresh_token:'test-refresh',user:{id:userId}}:{error:'invalid_grant'}),{status:correct&&exists?200:400});
+  else throw Error('Unexpected request');
+  return new Response(JSON.stringify(body),{status:200});
+ };
+ const handler=createUsernameHandler({url:'https://project.invalid',serviceKey:'test-service',anonKey:'test-anon',fetch:request,digest:async()=> 'a'.repeat(64)});
+ const req=(username='AFFE',password='test-password',origin='https://lagerkollen.vercel.app')=>new Request('https://project.invalid/username-login',{method:'POST',headers:{'Content-Type':'application/json',Origin:origin,'cf-connecting-ip':'127.0.0.1'},body:JSON.stringify({username,password})});
+ let response=await handler(req());assert.equal(response.status,200);assert.deepEqual(await response.json(),{access_token:'test-access',refresh_token:'test-refresh'});assert.equal(response.headers.get('cache-control'),'no-store');assert.ok(calls.some(c=>c.url.includes('username=eq.affe')));
+ const authCall=calls.find(c=>c.url.includes('/token?'));assert.deepEqual(JSON.parse(authCall.options.body),{email:'account@example.invalid',password:'test-password'});
+ correct=false;response=await handler(req());assert.equal(response.status,401);const knownFailure=await response.text();
+ exists=false;response=await handler(req());assert.equal(await response.text(),knownFailure,'no account/email enumeration in errors');
+ allowed=false;const prior=calls.length;response=await handler(req());assert.equal(response.status,429);assert.equal(calls.length,prior+1);
+ response=await handler(req('affe','test-password','https://untrusted.invalid'));assert.equal(response.status,403);
+ response=await handler(req('../users','x'));assert.equal(response.status,401);
+ response=await handler(new Request('https://project.invalid',{method:'POST',headers:{'Content-Type':'application/json'},body:'x'.repeat(5000)}));assert.equal(response.status,401);
+ response=await handler(new Request('https://project.invalid',{method:'OPTIONS',headers:{Origin:'https://lagerkollen.vercel.app'}}));assert.equal(response.status,204);
+
+ let session=null,invoked,usedEmail,profile='affe',upserted;
+ const client={auth:{onAuthStateChange(){},getSession:async()=>({data:{session}}),signInWithPassword:async input=>{usedEmail=input;session={user:{id:userId}};return {data:{session,user:session.user}};},setSession:async tokens=>{assert.deepEqual(JSON.parse(JSON.stringify(tokens)),{access_token:'test-access',refresh_token:'test-refresh'});session={user:{id:userId}};return {data:{session,user:session.user}};}},functions:{invoke:async(name,input)=>{invoked={name,input};return {data:{access_token:'test-access',refresh_token:'test-refresh'}};}},from(name){assert.equal(name,'lagerkollen_usernames');const query={select(){return query},eq(key,id){assert.equal(key,'user_id');assert.equal(id,userId);return query},maybeSingle:async()=>({data:{username:profile}}),upsert(row){upserted=row;profile=row.username;return query},single:async()=>({data:{username:profile}})};return query;} };
+ const context=vm.createContext({window:{LAGERKOLLEN_CLOUD:{url:'https://project.invalid',publishableKey:'test-anon'}},createClient:()=>client,setTimeout,Date});
+ vm.runInContext(fs.readFileSync('src/cloud.js','utf8').replace("import {createClient} from '@supabase/supabase-js';",''),context);
+ const Cloud=context.window.Cloud;
+ await Cloud.signInWithPassword(' Affe ','test-password');assert.equal(invoked.name,'username-login');assert.equal(invoked.input.body.username,'affe');assert.equal(Cloud.user.id,userId);assert.equal(Cloud.username,'affe');
+ await Cloud.setUsername(' affe2 ');assert.equal(upserted.user_id,userId);assert.equal(upserted.username,'affe2');assert.equal(Cloud.user.id,userId);
+ await assert.rejects(()=>Cloud.setUsername('x'),/3–32/);
+ await Cloud.signInWithPassword('account@example.invalid','test-password');assert.equal(usedEmail.email,'account@example.invalid');
+ const html=fs.readFileSync('index.html','utf8'),pattern=html.match(/id="usernameChoice"[^>]*pattern="([^"]+)"/)[1];assert.equal(new RegExp('^(?:'+pattern+')$','v').test('affe'),true);assert.equal(new RegExp('^(?:'+pattern+')$','v').test('af-fe'),true);
+ assert.match(html,/id="passwordEmail" type="text"/);assert.doesNotMatch(fs.readFileSync('cloud.bundle.js','utf8'),/SUPABASE_SERVICE_ROLE_KEY/);
+ console.log('Username auth: password validation, generic failures, rate limits, CORS, body limits, same user ID, session setup, profile updates and email fallback passed');
+})().catch(e=>{console.error(e);process.exitCode=1});
