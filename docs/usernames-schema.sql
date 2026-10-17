@@ -1,7 +1,7 @@
 begin;
 create table public.lagerkollen_usernames (
  user_id uuid primary key references auth.users(id) on delete cascade,
- username text not null unique check (username ~ '^[a-z0-9][a-z0-9._-]{2,31}$'),
+ username text not null unique check (username ~ '^[a-zåäö0-9][a-zåäö0-9._-]{2,31}$'),
  updated_at timestamptz not null default now()
 );
 alter table public.lagerkollen_usernames enable row level security;

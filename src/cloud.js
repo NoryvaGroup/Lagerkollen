@@ -13,14 +13,14 @@ window.Cloud={
  async init(onAuth){listener=onAuth;if(!client)return null;const {data,error}=await client.auth.getSession();if(error)throw error;session=data.session;await readUsername();return session?.user||null},
  async sendLink(email){if(!client)throw Error('Molnlagring är inte konfigurerad');let {error}=await client.auth.signInWithOtp({email,options:{emailRedirectTo:location.origin,shouldCreateUser:true}});if(error)throw error},
  async signInWithPassword(identifier,password){
-  if(!client)throw Error('Molnlagring är inte konfigurerad');identifier=identifier.trim();
+  if(!client)throw Error('Molnlagring är inte konfigurerad');identifier=identifier.trim().normalize('NFC');
   if(identifier.includes('@')){const {data,error}=await client.auth.signInWithPassword({email:identifier,password});if(error)throw error;session=data.session;await readUsername();return data.user;}
   const result=await client.functions.invoke('username-login',{body:{username:identifier.toLowerCase(),password}});
   if(result.error){let message='Fel användarnamn eller lösenord.';try{const detail=await result.error.context?.json();if(detail?.error)message=String(detail.error).slice(0,200);}catch{}throw Error(message);}
   if(!result.data?.access_token||!result.data?.refresh_token)throw Error('Fel användarnamn eller lösenord.');
   const {data,error}=await client.auth.setSession({access_token:result.data.access_token,refresh_token:result.data.refresh_token});if(error)throw error;session=data.session;await readUsername();return data.user;
  },
- async setUsername(value){if(!session?.user)throw Error('Logga in först');const username=String(value).trim().toLowerCase();if(!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(username))throw Error('Använd 3–32 tecken: a–z, siffror, punkt, bindestreck eller understreck.');const {data,error}=await client.from('lagerkollen_usernames').upsert({user_id:session.user.id,username,updated_at:new Date().toISOString()}).select('username').single();if(error)throw Error(error.code==='23505'?'Användarnamnet är upptaget. Välj ett annat.':'Kunde inte spara användarnamnet. Försök igen.');loginUsername=data.username;return loginUsername;},
+ async setUsername(value){if(!session?.user)throw Error('Logga in först');const username=String(value).trim().normalize('NFC').toLowerCase();if(!/^[a-zåäö0-9][a-zåäö0-9._-]{2,31}$/.test(username))throw Error('Använd 3–32 tecken: a–z och åäö, siffror, punkt, bindestreck eller understreck.');const {data,error}=await client.from('lagerkollen_usernames').upsert({user_id:session.user.id,username,updated_at:new Date().toISOString()}).select('username').single();if(error)throw Error(error.code==='23505'?'Användarnamnet är upptaget. Välj ett annat.':'Kunde inte spara användarnamnet. Försök igen.');loginUsername=data.username;return loginUsername;},
  async setPassword(password){if(!session?.user)throw Error('Logga in först');const {error}=await client.auth.updateUser({password});if(error)throw error},
  async verifyCode(email,token){if(!client)throw Error('Molnlagring är inte konfigurerad');let {error}=await client.auth.verifyOtp({email,token,type:'email'});if(error)throw error},
  async signOut(){if(!client)return;let {error}=await client.auth.signOut();if(error)throw error},

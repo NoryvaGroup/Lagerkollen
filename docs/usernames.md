@@ -20,3 +20,6 @@ Auth's own protections also apply. The limiter stores only a SHA-256 IP hash.
 
 The limiter uses SECURITY INVOKER and is executable only by service_role.
 Do not grant clients direct access to the attempts table or RPC.
+
+Swedish letters å, ä and ö are supported. Client and server normalize Unicode
+input to NFC before lowercasing. The owner's current alias is `tylöproduktion`.

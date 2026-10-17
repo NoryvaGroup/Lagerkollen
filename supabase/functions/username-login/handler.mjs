@@ -15,8 +15,8 @@ export function createUsernameHandler({url,serviceKey,anonKey,fetch:request,dige
    const reader=req.body?.getReader();if(!reader)return invalid();let size=0,parts=[];
    while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>4096){await reader.cancel();return invalid();}parts.push(value);}
    const bytes=new Uint8Array(size);let offset=0;for(const p of parts){bytes.set(p,offset);offset+=p.length;}
-   const body=JSON.parse(new TextDecoder().decode(bytes)),username=String(body.username||'').trim().toLowerCase(),password=body.password;
-   if(!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(username)||typeof password!=='string'||!password.length||password.length>256)return invalid();
+   const body=JSON.parse(new TextDecoder().decode(bytes)),username=String(body.username||'').trim().normalize('NFC').toLowerCase(),password=body.password;
+   if(!/^[a-zåäö0-9][a-zåäö0-9._-]{2,31}$/.test(username)||typeof password!=='string'||!password.length||password.length>256)return invalid();
    // Cloudflare supplies this header. Ignore caller-controlled forwarded-for headers.
    const rawIp=req.headers.get('cf-connecting-ip')||'',ip=/^[0-9a-fA-F:.]{3,64}$/.test(rawIp)?rawIp:'unknown';
    const key=await digest('lagerkollen-username-login:'+ip);

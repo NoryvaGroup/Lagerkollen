@@ -14,6 +14,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
  const handler=createUsernameHandler({url:'https://project.invalid',serviceKey:'test-service',anonKey:'test-anon',fetch:request,digest:async()=> 'a'.repeat(64)});
  const req=(username='AFFE',password='test-password',origin='https://lagerkollen.vercel.app')=>new Request('https://project.invalid/username-login',{method:'POST',headers:{'Content-Type':'application/json',Origin:origin,'cf-connecting-ip':'127.0.0.1'},body:JSON.stringify({username,password})});
  let response=await handler(req());assert.equal(response.status,200);assert.deepEqual(await response.json(),{access_token:'test-access',refresh_token:'test-refresh'});assert.equal(response.headers.get('cache-control'),'no-store');assert.ok(calls.some(c=>c.url.includes('username=eq.affe')));
+ response=await handler(req(' TYLO\u0308PRODUKTION '));assert.equal(response.status,200);assert.ok(calls.some(c=>c.url.includes('username=eq.'+encodeURIComponent('tylöproduktion'))));
  const authCall=calls.find(c=>c.url.includes('/token?'));assert.deepEqual(JSON.parse(authCall.options.body),{email:'account@example.invalid',password:'test-password'});
  correct=false;response=await handler(req());assert.equal(response.status,401);const knownFailure=await response.text();
  exists=false;response=await handler(req());assert.equal(await response.text(),knownFailure,'no account/email enumeration in errors');
@@ -30,9 +31,11 @@ const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('nod
  const Cloud=context.window.Cloud;
  await Cloud.signInWithPassword(' Affe ','test-password');assert.equal(invoked.name,'username-login');assert.equal(invoked.input.body.username,'affe');assert.equal(Cloud.user.id,userId);assert.equal(Cloud.username,'affe');
  await Cloud.setUsername(' affe2 ');assert.equal(upserted.user_id,userId);assert.equal(upserted.username,'affe2');assert.equal(Cloud.user.id,userId);
+ await Cloud.setUsername(' TYLO\u0308PRODUKTION ');assert.equal(upserted.username,'tylöproduktion');await Cloud.signInWithPassword('TYLO\u0308PRODUKTION','test-password');assert.equal(invoked.input.body.username,'tylöproduktion');
  await assert.rejects(()=>Cloud.setUsername('x'),/3–32/);
  await Cloud.signInWithPassword('account@example.invalid','test-password');assert.equal(usedEmail.email,'account@example.invalid');
  const html=fs.readFileSync('index.html','utf8'),pattern=html.match(/id="usernameChoice"[^>]*pattern="([^"]+)"/)[1];assert.equal(new RegExp('^(?:'+pattern+')$','v').test('affe'),true);assert.equal(new RegExp('^(?:'+pattern+')$','v').test('af-fe'),true);
+ assert.equal(new RegExp('^(?:'+pattern+')$','v').test('tylöproduktion'),true);
  assert.match(html,/id="passwordEmail" type="text"/);assert.doesNotMatch(fs.readFileSync('cloud.bundle.js','utf8'),/SUPABASE_SERVICE_ROLE_KEY/);
  console.log('Username auth: password validation, generic failures, rate limits, CORS, body limits, same user ID, session setup, profile updates and email fallback passed');
 })().catch(e=>{console.error(e);process.exitCode=1});
