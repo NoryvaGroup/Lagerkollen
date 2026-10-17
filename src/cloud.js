@@ -14,6 +14,8 @@ window.Cloud={
  async setPassword(password){if(!session?.user)throw Error('Logga in först');const {error}=await client.auth.updateUser({password});if(error)throw error},
  async verifyCode(email,token){if(!client)throw Error('Molnlagring är inte konfigurerad');let {error}=await client.auth.verifyOtp({email,token,type:'email'});if(error)throw error},
  async signOut(){if(!client)return;let {error}=await client.auth.signOut();if(error)throw error},
+ async listManuals(){if(!session?.user)throw Error('Logga in för att läsa anvisningar');const {data,error}=await client.from('lagerkollen_manuals').select('id,title,description,storage_path,file_name,page_count,file_bytes,created_at').eq('owner_id',session.user.id).order('title');if(error)throw error;return data||[]},
+ async downloadManual(path){if(!session?.user)throw Error('Logga in för att läsa anvisningar');const {data,error}=await client.storage.from('lagerkollen-manuals').download(path);if(error)throw error;return data},
  async read(){const {data,error}=await client.from('lagerkollen_state').select('revision,payload').eq('owner_id',session.user.id).maybeSingle();if(error)throw error;return data},
  async write(payload,revision){let result;if(revision===null){result=await client.from('lagerkollen_state').insert({owner_id:session.user.id,payload}).select('revision').single()}else{result=await client.from('lagerkollen_state').update({payload,revision:revision+1,updated_at:new Date().toISOString()}).eq('owner_id',session.user.id).eq('revision',revision).select('revision').maybeSingle()}
  if(result.error){if(result.error.code==='23505')return null;throw result.error}return result.data?.revision??null}
